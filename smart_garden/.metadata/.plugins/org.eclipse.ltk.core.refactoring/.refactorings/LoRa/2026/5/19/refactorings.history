@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;LoRa/Loralib&apos; to &apos;LoRalib&apos;" description="Rename resource &apos;Loralib&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="Loralib" name="LoRalib" stamp="1778069868010" updateReferences="true"/>
+</session>

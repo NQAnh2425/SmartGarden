@@ -1,0 +1,10 @@
+15:53:02 **** Incremental Build of configuration Debug for project I2C_SHT30_DS3231 ****
+make -j16 all 
+arm-none-eabi-size   I2C_SHT30_DS3231.elf 
+   text	   data	    bss	    dec	    hex	filename
+  10068	     24	   1664	  11756	   2dec	I2C_SHT30_DS3231.elf
+Finished building: default.size.stdout
+ 
+
+15:53:02 Build Finished. 0 errors, 0 warnings. (took 137ms)
+

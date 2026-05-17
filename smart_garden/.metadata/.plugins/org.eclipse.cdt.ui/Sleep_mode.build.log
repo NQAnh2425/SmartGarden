@@ -1,0 +1,10 @@
+15:53:03 **** Incremental Build of configuration Debug for project Sleep_mode ****
+make -j16 all 
+arm-none-eabi-size   Sleep_mode.elf 
+   text	   data	    bss	    dec	    hex	filename
+   8628	     20	   1644	  10292	   2834	Sleep_mode.elf
+Finished building: default.size.stdout
+ 
+
+15:53:03 Build Finished. 0 errors, 0 warnings. (took 140ms)
+

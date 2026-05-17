@@ -1,0 +1,10 @@
+21:21:01 **** Incremental Build of configuration Debug for project LORA_V3 ****
+make -j16 all 
+arm-none-eabi-size   LORA_V3.elf 
+   text	   data	    bss	    dec	    hex	filename
+   5312	     20	   1660	   6992	   1b50	LORA_V3.elf
+Finished building: default.size.stdout
+ 
+
+21:21:01 Build Finished. 0 errors, 0 warnings. (took 135ms)
+
