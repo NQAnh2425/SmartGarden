@@ -1,2 +1,3 @@
 # SmartGarden
- Automated agriculture with WNS 
+ Automated agriculture with WSN
+ 
