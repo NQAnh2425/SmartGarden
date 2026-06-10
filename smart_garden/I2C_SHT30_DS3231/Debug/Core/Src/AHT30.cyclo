@@ -1,5 +1,0 @@
-../Core/Src/AHT30.c:10:6:AHT30_init	1
-../Core/Src/AHT30.c:24:9:AHT30_calc_CRC8	4
-../Core/Src/AHT30.c:55:6:AHT30_calc_data	1
-../Core/Src/AHT30.c:78:9:AHT30_isbusy	1
-../Core/Src/AHT30.c:87:9:AHT30_read_data	4

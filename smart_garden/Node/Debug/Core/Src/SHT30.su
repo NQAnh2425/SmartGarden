@@ -1,0 +1,2 @@
+../Core/Src/SHT30.c:9:19:SHT30_read_data	32	static
+../Core/Src/SHT30.c:37:6:SHT30_read_data_raw	24	static

@@ -1,0 +1,232 @@
+#include "LoRa_network.h"
+
+
+
+
+uint16_t flash_read_node_id(void)
+{
+    return *(uint16_t*)NODE_ID_ADDR;
+}
+
+void store_nodeid(uint8_t node_id){
+    flash_write_node_id((uint16_t)node_id);
+}
+
+
+HAL_StatusTypeDef flash_write_node_id(uint16_t node_id)
+{
+    HAL_StatusTypeDef status;
+    FLASH_EraseInitTypeDef erase;
+    uint32_t page_error;
+    HAL_FLASH_Unlock();
+    erase.TypeErase   = FLASH_TYPEERASE_PAGES;
+    erase.PageAddress = NODE_ID_ADDR;
+    erase.NbPages     = 1;
+    status = HAL_FLASHEx_Erase(&erase, &page_error);
+    if(status != HAL_OK)
+    {
+        HAL_FLASH_Lock();
+        return status;
+    }
+    status = HAL_FLASH_Program( FLASH_TYPEPROGRAM_HALFWORD, NODE_ID_ADDR,node_id);
+    HAL_FLASH_Lock();
+    return status;
+}
+
+
+
+//hard settime
+uint8_t RTC_SetTime(RTC_HandleTypeDef *rtc,Date *date,uint32_t format)
+{
+    RTC_TimeTypeDef time = {0};
+
+    time.Hours   = date->hour;
+    time.Minutes = date->min;
+    time.Seconds = date->sec;
+
+    if(HAL_RTC_SetTime(rtc, &time, format) != HAL_OK)
+    {
+        return 0;
+    }
+
+    return 1;
+}
+
+//@brief: get rtc time with error check
+uint8_t RTC_SetTime_Calib(RTC_HandleTypeDef *rtc,I2C_HandleTypeDef *hi2c,Date *date, uint32_t format)
+{
+    RTC_TimeTypeDef stm_time;
+    RTC_TimeTypeDef new_time;
+
+    HAL_RTC_GetTime(rtc, &stm_time, format);
+
+    RTC_read_data(hi2c, date, DS3231_ADDR);
+
+    int32_t sec_stm = RTC_ReadCounter(rtc);
+
+    int32_t sec_ds  = date->hour * 3600 +date->min  * 60 +date->sec;
+
+    int32_t error = sec_stm - sec_ds;
+
+    // xử lý qua ngày
+    if(error > 43200)
+        error -= 86400;
+    else if(error < -43200)
+        error += 86400;
+    // DS3231 bị treo??, trả về RTC nội
+    if((error < 6) && (error > -6))
+    {
+    if((error > 0) || (error < 0))
+    	{
+        	new_time.Hours   = date->hour;
+        	new_time.Minutes = date->min;
+        	new_time.Seconds = date->sec;
+		if(HAL_RTC_SetTime(rtc, &new_time, format) != HAL_OK)
+		 	{
+    		return 0;
+		 	}
+    	}
+
+    }
+
+    return 1;
+}
+
+//@brief: set RTC alarm
+// wakeup_time_s: define when MCU wake up from Low power mode (seconds)
+uint8_t RTC_SetAlarm(uint32_t wakeup_time_s,RTC_HandleTypeDef *rtc,uint32_t format){
+    RTC_AlarmTypeDef sAlarm;
+    uint32_t count= RTC_ReadCounter(rtc);
+
+    sAlarm.AlarmTime.Seconds =((count+wakeup_time_s))%60;
+    sAlarm.AlarmTime.Minutes =((count + wakeup_time_s )/60)%60;
+    sAlarm.AlarmTime.Hours   =((count + wakeup_time_s ) /3600)%24;
+    sAlarm.Alarm=RTC_ALARM_A;
+	  if (HAL_RTC_SetAlarm_IT(rtc, &sAlarm,format) != HAL_OK)
+  	  { 
+      return 0;
+  	  }
+    return 1;
+}
+
+
+//@brief: set RTC alarm to the next period
+uint8_t RTC_SetAlarm_NextPeriod(RTC_HandleTypeDef *rtc,uint32_t period_sec,uint32_t format){
+
+    uint32_t count;
+    // get current time
+    count = RTC_ReadCounter(rtc);
+    count=(count/period_sec+1)*period_sec-count;
+    return RTC_SetAlarm(count,rtc,format);
+}
+
+//@brief: set RTC alarm to time slot of TDMA
+void RTC_SetAlarm_Timeslot(uint8_t nodeid,RTC_HandleTypeDef *rtc,uint16_t tdma_wakeup_delay,uint32_t format){
+    uint16_t count;
+    count = (nodeid-1)*7 +tdma_wakeup_delay;
+    RTC_SetAlarm(count,rtc,format);
+}
+
+//@brief: set RTC alarm to next period
+void RTC_SetWakeupTime_NextPeriod(RTC_HandleTypeDef *rtc,uint32_t period_sec,uint32_t format){
+    uint32_t count;
+    // get current time
+    count =RTC_ReadCounter(rtc);
+    count=(count/period_sec+1)*period_sec-count+1;
+    RTC_SetAlarm(count,rtc,format);
+}
+
+uint32_t RTC_ReadCounter(RTC_HandleTypeDef *hrtc)
+{
+  uint16_t high1 = 0U, high2 = 0U, low = 0U;
+  uint32_t timecounter = 0U;
+
+  high1 = READ_REG(hrtc->Instance->CNTH & RTC_CNTH_RTC_CNT);
+  low   = READ_REG(hrtc->Instance->CNTL & RTC_CNTL_RTC_CNT);
+  high2 = READ_REG(hrtc->Instance->CNTH & RTC_CNTH_RTC_CNT);
+
+  if (high1 != high2)
+  {
+    /* In this case the counter roll over during reading of CNTL and CNTH registers,
+       read again CNTL register then return the counter value */
+    timecounter = (((uint32_t) high2 << 16U) | READ_REG(hrtc->Instance->CNTL & RTC_CNTL_RTC_CNT));
+  }
+  else
+  {
+    /* No counter roll over during reading of CNTL and CNTH registers, counter
+       value is equal to first value of CNTL and CNTH */
+    timecounter = (((uint32_t) high1 << 16U) | low);
+  }
+
+  return timecounter;
+}
+
+//@brief find smallest index empty time slot 
+uint8_t find_first_empty_TimeSlot(uint16_t bitmap)
+{
+    for(int i = 1; i <= 16; i++)
+    {
+        if((bitmap & (1U << (i-1))) == 0)
+        {
+            return i;
+        }
+    }
+
+    return 0;
+}
+
+uint16_t set_first_empty_TimeSlot(uint16_t bitmap)
+{
+    for(int i = 1; i <= 16; i++)
+    {
+        if((bitmap & (1U << (i-1))) == 0)
+        {
+        	return bitmap|=(1U << (i-1));
+
+        }
+    }
+    return 0;
+}
+
+//@brief CRC calculate
+uint8_t calculate_crc(uint8_t *payload_data, uint8_t length) {
+    uint8_t crc = 0;
+    for (uint8_t i = 0; i < length; i++) {
+        crc ^= payload_data[i]; // Simple XOR-based CRC
+    }
+    return crc;
+}
+
+void Clear_Frame(frame_data_t *frame) {
+    frame->type = 0;
+    frame->dev_id = 0;
+    frame->length = 0;
+    frame->crc = 0;
+    frame->rx_state = IDLE;
+    frame->FiFoAddPtr = 0;
+    frame->number_of_bytes = 0;
+    // Clear payload data
+    frame->payload.data.temp_int = 0;
+    frame->payload.data.temp_frac = 0;
+    frame->payload.data.humi = 0;
+    frame->payload.data.mois = 0;
+    frame->payload.data_beacon.hour = 0;
+    frame->payload.data_beacon.minute = 0;
+
+}
+
+
+//@brief: return numbers of joined nodes
+uint8_t Node_Joined_Num(uint16_t bitmap){
+    uint8_t count=0;
+    for(int i=0;i<16;i++){
+        if(((bitmap >> i) & 0x01) != 0){
+            count++;
+        }
+    }
+    return count;
+}
+//@brief: return numbers of unjoined node
+//uint8_t Node_Unjoined_Num(void){
+//    return node_unjoined_num;
+//}

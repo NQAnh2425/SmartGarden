@@ -1,0 +1,13 @@
+../Core/Src/main.c:87:6:Node_Data_Buff_Init	3
+../Core/Src/main.c:104:6:Decrease_Missed_Cycle_Count	4
+../Core/Src/main.c:118:6:Node_List	4
+../Core/Src/main.c:140:6:HAL_RTC_AlarmAEventCallback	1
+../Core/Src/main.c:145:6:HAL_GPIO_EXTI_Callback	2
+../Core/Src/main.c:156:5:main	35
+../Core/Src/main.c:446:6:SystemClock_Config	4
+../Core/Src/main.c:493:13:MX_I2C1_Init	2
+../Core/Src/main.c:527:13:MX_RTC_Init	4
+../Core/Src/main.c:585:13:MX_SPI1_Init	2
+../Core/Src/main.c:623:13:MX_USART1_UART_Init	2
+../Core/Src/main.c:656:13:MX_GPIO_Init	1
+../Core/Src/main.c:724:6:Error_Handler	3

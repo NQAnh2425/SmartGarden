@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;Gateway/Core/Src/DS3232.h&apos; to &apos;DS3231.h&apos;" description="Rename resource &apos;DS3232.h&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="Core/Src/DS3232.h" name="DS3231.h" stamp="1779964430278" updateReferences="true"/>
+</session>

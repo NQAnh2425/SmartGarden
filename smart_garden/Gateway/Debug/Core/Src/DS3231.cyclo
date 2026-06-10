@@ -1,0 +1,5 @@
+../Core/Src/DS3231.c:4:9:BCD2dec	1
+../Core/Src/DS3231.c:8:9:dec2BCD	1
+../Core/Src/DS3231.c:12:6:RTC_init	1
+../Core/Src/DS3231.c:23:6:RTC_write_data	1
+../Core/Src/DS3231.c:38:9:RTC_read_data	2

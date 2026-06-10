@@ -1,0 +1,76 @@
+#ifndef __NODE_H__
+#define __NODE_H__
+#include "LoRa_network.h"
+#include "AHT30.h"
+#include "DS3231.h"
+
+#define UID 123
+
+
+
+
+typedef enum {
+	INIT_FAIL,
+	INIT_SUCCESS,
+    RX_BEACON_INIT,
+    RX_BEACON,
+	GET_DEV_ID,
+    UNJOINED,
+    JOINED,
+	TX_JOIN_REQUEST,
+	RX_JOIN_RESPONSE_INIT,
+	RX_JOIN_RESPONSE,
+	JOIN_RESPONSE_HANDLE,
+    SLEEP_TO_NEXT_PERIOD,
+    MEASURE,
+    SLEEP_WAIT_TIME_SLOT,
+    TX_DATA,
+} node_state_t;
+
+
+
+
+void Node_LoRa_Init(LoRa *myLoRa,SPI_HandleTypeDef *hspi);
+uint8_t Node_Read_Dev_ID(frame_data_t *frame);
+
+node_state_t Node_LoRa_Check(node_state_t *state,LoRa* _LoRa);
+
+uint8_t read_sensor_to_buff(I2C_HandleTypeDef *hi2c,uint8_t *data, uint8_t ADDR,uint8_t data_size,uint32_t timeout);
+void Create_JoinRequest_Frame(frame_data_t *frame,uint8_t *data);
+
+void Create_Data_Frame(frame_data_t *frame,uint8_t *data);
+
+
+void Create_Frame(frame_data_t *frame,frame_type_t frame_type,uint8_t *data);
+uint8_t create_payload_node(frame_data_t *frame,uint8_t *payload_tx,uint8_t frame_type);
+uint8_t Node_Create_Payload(frame_data_t *frame,uint8_t frame_type);
+
+
+static inline uint8_t fifo_read(LoRa *_LoRa)
+{
+    return LoRa_read(_LoRa, RegFiFo);
+};
+
+//static void lora_rx_reset(LoRa *_LoRa,frame_data_t *frame)
+//{
+//    LoRa_gotoMode(_LoRa, RXCONTIN_MODE);
+//    frame->rx_state = IDLE;
+//};
+
+
+uint8_t Node_Rx_Frame(LoRa* _LoRa, frame_data_t *frame);
+
+uint8_t Node_Rx_Beacon_Handle(frame_data_t *frame_data_rx,I2C_HandleTypeDef *hi2c,Date *date ,RTC_HandleTypeDef *rtc);
+
+uint8_t Node_Rx_JoinResponse_Handle(LoRa* _LoRa,RTC_HandleTypeDef *rtc,frame_data_t *frame_data_rx,uint8_t *nodeid);
+
+uint8_t Node_RxCONTIN_Init(LoRa* _LoRa);
+void Node_Rx_ACK_Handle(RTC_HandleTypeDef *rtc);
+
+void Node_Rx_NACK_Handle(RTC_HandleTypeDef *rtc);
+
+uint8_t Node_Tx_JoinRequest(LoRa* _LoRa,uint16_t timeout);
+
+uint8_t Node_Tx_Data(LoRa* _LoRa,uint16_t timeout);
+
+#endif

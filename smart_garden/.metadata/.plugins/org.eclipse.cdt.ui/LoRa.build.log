@@ -1,7 +1,7 @@
-20:51:15 **** Incremental Build of configuration Debug for project LoRa ****
-make -j12 all 
+14:41:46 **** Incremental Build of configuration Debug for project LoRa ****
+make -j16 all 
 Drivers/STM32F1xx_HAL_Driver/Src/subdir.mk:64: *** unable to generate command line.  Stop.
-"make -j12 all" terminated with exit code 2. Build might be incomplete.
+"make -j16 all" terminated with exit code 2. Build might be incomplete.
 
-20:51:15 Build Failed. 1 errors, 0 warnings. (took 160ms)
+14:41:47 Build Failed. 1 errors, 0 warnings. (took 144ms)
 

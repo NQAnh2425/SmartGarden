@@ -1,0 +1,332 @@
+#include<stdio.h>
+#include "node.h"
+
+
+
+static uint8_t payload[10]={0};
+
+
+void Node_LoRa_Init(LoRa *myLoRa,SPI_HandleTypeDef *hspi)
+{
+    *myLoRa = newLoRa();
+
+    myLoRa->hSPIx      = hspi;
+
+    myLoRa->CS_port    = LORA_NSS_GPIO_Port;
+    myLoRa->CS_pin     = LORA_NSS_Pin;
+
+    myLoRa->reset_port = LORA_RESET_GPIO_Port;
+    myLoRa->reset_pin  = LORA_RESET_Pin;
+
+    myLoRa->DIO0_port  = LORA_DIO0_GPIO_Port;
+    myLoRa->DIO0_pin   = LORA_DIO0_Pin;
+
+    myLoRa->frequency  = 433;
+
+    myLoRa->spredingFactor = SF_7;
+    myLoRa->bandWidth      = BW_125KHz;
+    myLoRa->crcRate        = CR_4_5;
+
+    myLoRa->power = POWER_14db;
+
+    myLoRa->overCurrentProtection = 120;
+
+    myLoRa->preamble = 10;
+}
+
+
+node_state_t Node_LoRa_Check(node_state_t *state,LoRa* _LoRa){
+	uint16_t stt;
+	uint8_t trial=5;
+	while (trial!=0){
+		LoRa_reset(_LoRa);
+		stt= LoRa_init(_LoRa);
+	    if(stt==LORA_OK){
+	        *state =   INIT_SUCCESS;
+	        return     INIT_SUCCESS;
+	    }
+	    trial--;
+	}
+    *state = INIT_FAIL;
+    return INIT_FAIL;
+}
+
+uint8_t Node_Read_Dev_ID(frame_data_t *frame)
+{
+	uint16_t node_id = flash_read_node_id();
+	if (node_id == 0xFFFF) {
+         return 0;
+}
+	frame->dev_id = (uint8_t)node_id;
+	return (uint8_t)node_id;
+}
+
+
+// Node receive continues with timeout
+uint8_t Node_RxCONTIN_Init(LoRa* _LoRa)
+{
+    LoRa_startReceiving(_LoRa);
+    if((LoRa_read(_LoRa,RegOpMode)& 0x07)== RXCONTIN_MODE)
+    {
+        return 1;
+    }
+    else
+    {
+    	return 0;
+    }
+}
+
+
+
+
+void Create_JoinRequest_Frame(frame_data_t *frame,uint8_t *data){
+    frame->type=FRAME_TYPE_JOIN_REQUEST;
+    frame->dev_id=data[0];
+    frame->length=FRAME_TYPE_JOIN_REQUEST_LENGTH;
+}
+
+void Create_Data_Frame(frame_data_t *frame,uint8_t *data){
+    
+    frame->type=FRAME_TYPE_DATA;
+    frame->dev_id=data[0];
+    frame->length=FRAME_TYPE_DATA_LENGTH;
+    frame->payload.data.temp_int=data[3];
+    frame->payload.data.temp_frac=data[4];
+    frame->payload.data.humi=data[5];
+    frame->payload.data.mois=data[6];
+}
+
+
+
+uint8_t read_sensor_to_buff(I2C_HandleTypeDef *hi2c,uint8_t *data, uint8_t ADDR,uint8_t data_size,uint32_t timeout){
+    uint8_t pData[6]={0};
+    uint8_t RH;
+    uint16_t Temp;
+    uint8_t stt;
+    stt= AHT30_read_data(hi2c, ADDR,pData,data_size,timeout);
+    if(stt)
+    {
+        AHT30_calc_data(pData,&RH, &Temp);
+        data[3]=Temp/10;
+        data[4]=Temp%10;
+        data[5]=RH;
+        data[6]=36;// fake mois
+    }
+    return stt;
+}
+
+void Create_Frame(frame_data_t *frame,frame_type_t frame_type,uint8_t *data) {
+    switch (frame_type)
+    {
+    case beacon_frame:
+//        Create_Beacon_Frame(frame,data);
+        break;
+    case join_request_frame:
+        Create_JoinRequest_Frame(frame,data);
+        break;
+    case data_frame:
+        Create_Data_Frame(frame,data);
+        break;
+    case ACK_frame:
+//        Create_ACK_Frame(frame,data);
+        break;
+    default:
+        break;
+    }
+}
+
+
+uint8_t create_payload_node(frame_data_t *frame,uint8_t *payload_tx,uint8_t frame_type) {
+    if (frame->length > MAX_PAYLOAD_SIZE) {
+        return 0; // Payload size exceeds maximum limit
+    }
+    switch (frame->type) {
+        case FRAME_TYPE_JOIN_REQUEST:
+        payload_tx[0] = (uint8_t)SOF_BYTE;
+        payload_tx[1] = frame->type;
+        payload_tx[2] = frame->dev_id;
+        payload_tx[3] = calculate_crc(payload_tx,FRAME_TYPE_JOIN_REQUEST_LENGTH-2); // CRC8 of the payload
+        payload_tx[4] = (uint8_t)EOF_BYTE;
+        return 1;
+            break;
+        case FRAME_TYPE_DATA:
+        payload_tx[0] = (uint8_t)SOF_BYTE;
+        payload_tx[1] = frame->type;
+        payload_tx[2] = frame->dev_id;
+        payload_tx[3] = frame->length; // Length
+        payload_tx[4] = frame->payload.data.temp_int; // Temperature high byte
+        payload_tx[5] = frame->payload.data.temp_frac; // Temperature low byte
+        payload_tx[6] = frame->payload.data.humi; // Humidity
+        payload_tx[7] = frame->payload.data.mois; // Moisture
+        payload_tx[8] = calculate_crc(payload_tx,FRAME_TYPE_DATA_LENGTH-2); // CRC8 of the payload
+        payload_tx[9] = (uint8_t)EOF_BYTE;
+        return 1;
+            break;
+        default:
+            return 0; // Invalid frame type
+    }
+}
+
+uint8_t Node_Create_Payload(frame_data_t *frame,uint8_t frame_type){
+	return create_payload_node(frame,payload,frame_type);
+}
+
+
+uint8_t Node_Rx_Frame(LoRa* _LoRa, frame_data_t *frame)
+{
+    uint8_t crc = 0;
+    uint8_t read;
+
+    Clear_Frame(frame);
+
+    LoRa_gotoMode(_LoRa, STNBY_MODE);
+
+    read = LoRa_read(_LoRa, RegIrqFlags);
+
+    if((read & 0x40) == 0)
+    {
+        LoRa_gotoMode(_LoRa, RXCONTIN_MODE);
+        return 0;
+    }
+
+    LoRa_write(_LoRa, RegIrqFlags, 0xFF);
+
+    frame->FiFoAddPtr = LoRa_read(_LoRa, RegFiFoRxCurrentAddr);
+    frame->number_of_bytes = LoRa_read(_LoRa, RegRxNbBytes);
+
+    LoRa_write(_LoRa, RegFiFoAddPtr, frame->FiFoAddPtr);
+
+    /* SOF */
+    read = LoRa_read(_LoRa, RegFiFo);
+
+    if(read != SOF_BYTE)
+        goto fail;
+
+    crc ^= read;
+
+    /* TYPE */
+    frame->type = LoRa_read(_LoRa, RegFiFo);
+    crc ^= frame->type;
+
+    /* DEV_ID */
+    frame->dev_id = LoRa_read(_LoRa, RegFiFo);
+    crc ^= frame->dev_id;
+
+    if(frame->dev_id != gateway_id)
+        goto fail;
+
+    switch(frame->type)
+    {
+        case FRAME_TYPE_BEACON:
+        {
+            frame->length = LoRa_read(_LoRa, RegFiFo);
+            crc ^= frame->length;
+
+            if(frame->length != FRAME_TYPE_BEACON_LENGTH)
+                goto fail;
+
+            frame->payload.data_beacon.hour =
+                LoRa_read(_LoRa, RegFiFo);
+            crc ^= frame->payload.data_beacon.hour;
+
+            frame->payload.data_beacon.minute =
+                LoRa_read(_LoRa, RegFiFo);
+            crc ^= frame->payload.data_beacon.minute;
+
+            frame->payload.data_beacon.second =
+                LoRa_read(_LoRa, RegFiFo);
+            crc ^= frame->payload.data_beacon.second;
+
+            frame->crc = LoRa_read(_LoRa, RegFiFo);
+
+            if(frame->crc != crc)
+                goto fail;
+        }
+        break;
+
+        case FRAME_TYPE_JOIN_RESPONSE:
+        {
+            frame->length = LoRa_read(_LoRa, RegFiFo);
+            crc ^= frame->length;
+
+            if(frame->length > FRAME_TYPE_JOIN_RESPONSE_MAX_LENGTH)
+                goto fail;
+
+            for(uint8_t i = 0; i < frame->length; i++)
+            {
+                frame->payload.response_data[i] =
+                    LoRa_read(_LoRa, RegFiFo);
+
+                crc ^= frame->payload.response_data[i];
+            }
+
+            frame->crc = LoRa_read(_LoRa, RegFiFo);
+
+            if(frame->crc != crc)
+                goto fail;
+        }
+        break;
+
+        default:
+            goto fail;
+    }
+
+    /* EOF */
+    read = LoRa_read(_LoRa, RegFiFo);
+
+    if(read != EOF_BYTE)
+        goto fail;
+
+    LoRa_gotoMode(_LoRa, RXCONTIN_MODE);
+    return 1;
+
+fail:
+
+	LoRa_gotoMode(_LoRa, RXCONTIN_MODE);
+	frame->rx_state = IDLE;
+    LoRa_gotoMode(_LoRa, RXCONTIN_MODE);
+    return 0;
+}
+
+uint8_t Node_Rx_Beacon_Handle(frame_data_t *frame_data_rx,I2C_HandleTypeDef *hi2c,Date *date ,RTC_HandleTypeDef *rtc){
+	uint8_t sec = frame_data_rx->payload.data_beacon.second + 1;
+
+	date->sec  = sec % 60;
+	date->min  = frame_data_rx->payload.data_beacon.minute + sec / 60;
+	date->hour = frame_data_rx->payload.data_beacon.hour;
+
+	if(date->min >= 60)
+	{
+	    date->min -= 60;
+	    date->hour = (date->hour + 1) % 24;
+	}
+    RTC_write_data(hi2c, date, DS3231_ADDR);
+    return RTC_SetTime(rtc, hi2c, date,RTC_FORMAT_BIN);
+};
+
+void Node_Rx_Beacon_Timeout_Handle(RTC_HandleTypeDef *rtc){
+    RTC_SetWakeupTime_NextPeriod(rtc,30,RTC_FORMAT_BIN);
+};
+
+uint8_t Node_Rx_JoinResponse_Handle(LoRa* _LoRa,RTC_HandleTypeDef *rtc,frame_data_t *frame_data_rx,uint8_t *nodeid){
+    for(uint8_t i=0;i<frame_data_rx->length-5;i+=2){
+        if(frame_data_rx->payload.response_data[i]==UID)
+        {
+            *nodeid=frame_data_rx->payload.response_data[i+1];
+            store_nodeid(*nodeid);
+            return *nodeid;
+        }
+    }
+    return 0;
+};
+
+uint8_t Node_Tx_JoinRequest(LoRa* _LoRa,uint16_t timeout)
+{
+	return LoRa_transmit(_LoRa, payload, FRAME_TYPE_JOIN_REQUEST_LENGTH, timeout);
+}
+
+uint8_t Node_Tx_Data(LoRa* _LoRa,uint16_t timeout)
+{
+	return LoRa_transmit(_LoRa, payload, FRAME_TYPE_DATA_LENGTH, timeout);
+}
+

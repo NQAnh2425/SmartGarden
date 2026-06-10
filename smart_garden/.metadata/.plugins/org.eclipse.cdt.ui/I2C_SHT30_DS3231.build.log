@@ -1,10 +1,12 @@
-15:53:02 **** Incremental Build of configuration Debug for project I2C_SHT30_DS3231 ****
+15:37:39 **** Incremental Build of configuration Debug for project I2C_SHT30_DS3231 ****
 make -j16 all 
-arm-none-eabi-size   I2C_SHT30_DS3231.elf 
-   text	   data	    bss	    dec	    hex	filename
-  10068	     24	   1664	  11756	   2dec	I2C_SHT30_DS3231.elf
-Finished building: default.size.stdout
- 
+arm-none-eabi-gcc "../Core/Src/main.c" -mcpu=cortex-m3 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32F103xB -c -I../Core/Inc -I../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy -I../Drivers/STM32F1xx_HAL_Driver/Inc -I../Drivers/CMSIS/Device/ST/STM32F1xx/Include -I../Drivers/CMSIS/Include -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/main.d" -MT"Core/Src/main.o" --specs=nano.specs -mfloat-abi=soft -mthumb -o "Core/Src/main.o"
+../Core/Src/main.c:21:10: fatal error: DS3232.h: No such file or directory
+   21 | #include "DS3232.h"
+      |          ^~~~~~~~~~
+compilation terminated.
+make: *** [Core/Src/subdir.mk:37: Core/Src/main.o] Error 1
+"make -j16 all" terminated with exit code 2. Build might be incomplete.
 
-15:53:02 Build Finished. 0 errors, 0 warnings. (took 137ms)
+15:37:39 Build Failed. 2 errors, 0 warnings. (took 186ms)
 
