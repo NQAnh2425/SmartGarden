@@ -27,6 +27,6 @@ A low-power LoRa wireless sensor network using STM32F103C8T6 and SX1278 module f
 - Sensor data successfully sent to gateway
 - Real-time display on Blynk platform
 - TDMA scheduling and time sync working correctly
-DEMO video:
-DEMO blynk interface: https://www.youtube.com/watch?v=mZzxr0jQyzQ
-DEMO debug interface: https://studio.youtube.com/video/q0S_oU_FBuk
+- DEMO video:
+- DEMO blynk interface: https://www.youtube.com/watch?v=mZzxr0jQyzQ
+- DEMO debug interface: https://studio.youtube.com/video/q0S_oU_FBuk
